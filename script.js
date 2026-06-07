@@ -14,6 +14,12 @@ let isProcessingQueue = false;
 let incentiveDescriptionCache = new Map();
 let voicesReadyPromise = null;
 
+const isLocalDev =
+    window.location.protocol === "file:" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "::1";
+
 function wait(ms) {
 
     return new Promise(resolve => {
@@ -301,49 +307,59 @@ async function refresh() {
     }
 }
 
-document
-    .getElementById("testDonation")
-    .addEventListener("click", () => {
+const testDonationButton = document.getElementById("testDonation");
+const testIncentivesButton = document.getElementById("testIncentives");
 
-        enqueueDonationPopup({
-            displayName: "Wyatt",
-            amount: 25,
-            message: "W",
-            incentiveID: "952F1FE6-AA95-1704-AC5C4FBDA7B53445"
+if (isLocalDev) {
+
+    if (testDonationButton) {
+        testDonationButton.hidden = false;
+
+        testDonationButton.addEventListener("click", () => {
+
+            enqueueDonationPopup({
+                displayName: "Wyatt",
+                amount: 25,
+                message: "W",
+                incentiveID: "952F1FE6-AA95-1704-AC5C4FBDA7B53445"
+            });
+
+            enqueueDonationPopup({
+                displayName: "Hunter",
+                amount: 1000,
+                message: "This guys playing a dinosaur game lol"
+            });
+
         });
+    }
 
-        enqueueDonationPopup({
-            displayName: "Hunter",
-            amount: 1000,
-            message: "This guys playing a dinosaur game lol"
-        });
+    if (testIncentivesButton) {
+        testIncentivesButton.hidden = false;
 
-    });
+        testIncentivesButton.addEventListener("click", async () => {
 
-document
-    .getElementById("testIncentives")
-    .addEventListener("click", async () => {
+            try {
 
-        try {
+                const response = await fetch(
+                    `https://www.extra-life.org/api/participants/${participantId}/incentives`
+                );
 
-            const response = await fetch(
-                `https://www.extra-life.org/api/participants/${participantId}/incentives`
-            );
+                if (!response.ok) {
+                    throw new Error(`Incentives request failed: ${response.status}`);
+                }
 
-            if (!response.ok) {
-                throw new Error(`Incentives request failed: ${response.status}`);
+                const incentives = await response.json();
+                console.log("Incentives endpoint response:", incentives);
+                console.table(incentives);
+
+            } catch (err) {
+
+                console.error("Failed to fetch incentives endpoint", err);
             }
 
-            const incentives = await response.json();
-            console.log("Incentives endpoint response:", incentives);
-            console.table(incentives);
-
-        } catch (err) {
-
-            console.error("Failed to fetch incentives endpoint", err);
-        }
-
-    });
+        });
+    }
+}
 
 if ("speechSynthesis" in window) {
     waitForVoices();
