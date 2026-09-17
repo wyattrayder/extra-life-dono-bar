@@ -15,10 +15,10 @@ let incentiveDescriptionCache = new Map();
 let voicesReadyPromise = null;
 
 const isLocalDev =
-    window.location.protocol === "file:" ||
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
-    window.location.hostname === "::1";
+    window.location.hostname === "::1" ||
+    window.location.protocol === "file:";
 
 function wait(ms) {
 
@@ -77,6 +77,16 @@ function waitForVoices(timeoutMs = VOICE_LOAD_TIMEOUT_MS) {
     return voicesReadyPromise;
 }
 
+async function getExtraLifeJson(path) {
+    const response = await fetch(`/api/${path.replace(/^\/+/, "")}`);
+
+    if (!response.ok) {
+        throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
 async function getIncentiveDescription(incentiveId) {
 
     if (!incentiveId) {
@@ -89,16 +99,10 @@ async function getIncentiveDescription(incentiveId) {
 
     try {
 
-        const response = await fetch(
-            `https://www.extra-life.org/api/participants/${participantId}/incentives/${encodeURIComponent(incentiveId)}`
+        const incentive = await getExtraLifeJson(
+            `participants/${participantId}/incentives/${encodeURIComponent(incentiveId)}`
         );
 
-        if (!response.ok) {
-            incentiveDescriptionCache.set(incentiveId, null);
-            return null;
-        }
-
-        const incentive = await response.json();
         const description = (incentive.description || "").trim() || null;
 
         incentiveDescriptionCache.set(incentiveId, description);
@@ -114,11 +118,7 @@ async function getIncentiveDescription(incentiveId) {
 
 async function loadDonations() {
 
-    const response = await fetch(
-        `https://www.extra-life.org/api/participants/${participantId}/donations`
-    );
-
-    const donations = await response.json();
+    const donations = await getExtraLifeJson(`participants/${participantId}/donations`);
 
     donations.sort((a, b) =>
         new Date(b.createdDateUTC) -
@@ -140,11 +140,7 @@ async function loadDonations() {
 
 async function loadGoalProgress() {
 
-    const response = await fetch(
-        `https://www.extra-life.org/api/participants/${participantId}`
-    );
-
-    const participant = await response.json();
+    const participant = await getExtraLifeJson(`participants/${participantId}`);
 
     const raised = participant.sumDonations;
     const goal = participant.fundraisingGoal;
@@ -340,15 +336,7 @@ if (isLocalDev) {
 
             try {
 
-                const response = await fetch(
-                    `https://www.extra-life.org/api/participants/${participantId}/incentives`
-                );
-
-                if (!response.ok) {
-                    throw new Error(`Incentives request failed: ${response.status}`);
-                }
-
-                const incentives = await response.json();
+                const incentives = await getExtraLifeJson(`participants/${participantId}/incentives`);
                 console.log("Incentives endpoint response:", incentives);
                 console.table(incentives);
 
