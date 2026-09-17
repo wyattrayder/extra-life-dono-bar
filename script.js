@@ -1,6 +1,6 @@
 const participantId = "565898";
 
-const POLL_INTERVAL = 15000;
+const POLL_INTERVAL = 30000;
 const POPUP_FALLBACK_MS = 8000;
 const POPUP_GAP_MS = 1200;
 const POPUP_SHOW_DELAY_MS = 110;
@@ -13,8 +13,12 @@ let donationQueue = [];
 let isProcessingQueue = false;
 let incentiveDescriptionCache = new Map();
 let voicesReadyPromise = null;
+let refreshInProgress = false;
 
 const PROXY_BASE_URL = "https://extra-life-proxy.extra-life-proxy.workers.dev";
+const MAX_KNOWN_DONATION_IDS = 2500;
+const MAX_INCENTIVE_CACHE_SIZE = 200;
+const MAX_DONATION_QUEUE_SIZE = 25;
 
 const isLocalDev =
     window.location.hostname === "localhost" ||
@@ -97,6 +101,14 @@ async function getIncentiveDescription(incentiveId) {
 
     if (incentiveDescriptionCache.has(incentiveId)) {
         return incentiveDescriptionCache.get(incentiveId);
+    }
+
+    if (incentiveDescriptionCache.size >= MAX_INCENTIVE_CACHE_SIZE) {
+        const firstKey = incentiveDescriptionCache.keys().next().value;
+
+        if (firstKey !== undefined) {
+            incentiveDescriptionCache.delete(firstKey);
+        }
     }
 
     try {
@@ -263,6 +275,10 @@ async function processDonationQueue() {
 
 function enqueueDonationPopup(donation) {
 
+    if (donationQueue.length >= MAX_DONATION_QUEUE_SIZE) {
+        donationQueue.shift();
+    }
+
     donationQueue.push(donation);
     processDonationQueue();
 }
@@ -275,6 +291,16 @@ function detectNewDonations(donations) {
             knownDonationIds.add(d.donationID)
         );
 
+        while (knownDonationIds.size > MAX_KNOWN_DONATION_IDS) {
+            const oldestId = knownDonationIds.values().next().value;
+
+            if (oldestId === undefined) {
+                break;
+            }
+
+            knownDonationIds.delete(oldestId);
+        }
+
         initialized = true;
         return;
     }
@@ -285,12 +311,28 @@ function detectNewDonations(donations) {
 
             knownDonationIds.add(donation.donationID);
 
+            while (knownDonationIds.size > MAX_KNOWN_DONATION_IDS) {
+                const oldestId = knownDonationIds.values().next().value;
+
+                if (oldestId === undefined) {
+                    break;
+                }
+
+                knownDonationIds.delete(oldestId);
+            }
+
             enqueueDonationPopup(donation);
         }
     });
 }
 
 async function refresh() {
+
+    if (refreshInProgress) {
+        return;
+    }
+
+    refreshInProgress = true;
 
     try {
 
@@ -302,6 +344,8 @@ async function refresh() {
     } catch (err) {
 
         console.error(err);
+    } finally {
+        refreshInProgress = false;
     }
 }
 
