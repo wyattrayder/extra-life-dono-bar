@@ -142,7 +142,7 @@ async function loadDonations() {
     const tickerText = donations
         .slice(0, 20)
         .map(d =>
-            `${d.displayName || "Anonymous"} $${d.amount}`
+            `${d.displayName || "Anonymous"} $${Number(d.amount).toFixed(2)}`
         )
         .join(" • ");
 
@@ -165,7 +165,7 @@ async function loadGoalProgress() {
     );
 
     document.getElementById("goalText").textContent =
-        `$${raised.toLocaleString()} raised of $${goal.toLocaleString()} goal (${percent.toFixed(0)}%)`;
+        `$${Number(raised).toFixed(2).toLocaleString()} / $${Number(goal).toFixed(2).toLocaleString()} (${percent.toFixed(0)}%)`;
 
     document.getElementById("progressFill").style.width =
         `${percent}%`;
@@ -187,7 +187,7 @@ async function showDonationPopup(donation) {
         const popupBody = document.getElementById("popupBody");
         const popupIncentive = document.getElementById("popupIncentive");
         const donorName = donation.displayName || "Anonymous";
-        const primaryMessage = `${donorName} donated $${donation.amount}`;
+        const primaryMessage = `${donorName} donated $${Number(donation.amount).toFixed(2)}`;
         const message = incentive
             ? `${primaryMessage} to ${incentive}`
             : primaryMessage;
